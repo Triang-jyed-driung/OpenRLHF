@@ -8,6 +8,7 @@ from peft import LoraConfig, get_peft_model
 from peft.tuners.lora import LoraLayer
 from transformers import AutoConfig, AutoModel, BitsAndBytesConfig
 from transformers.integrations.deepspeed import HfDeepSpeedConfig
+from transformers.dynamic_module_utils import get_class_from_dynamic_module
 
 from openrlhf.utils.logging_utils import init_logger
 
@@ -74,7 +75,11 @@ def get_llm_for_sequence_regression(
     value_head_prefix = getattr(config, "value_head_prefix", value_head_prefix)
     logger.info(f"set value_head_prefix to `{value_head_prefix}`")
 
-    base_class = AutoModel._model_mapping[type(config)]
+    try: 
+        base_class = AutoModel._model_mapping[type(config)]
+    except KeyError:
+        base_class = get_class_from_dynamic_module(config.auto_map["AutoModel"], model_name_or_path)
+    
     base_pretrained_class = base_class.__base__
     if model_type == "reward":
         cls_class = _get_reward_model(base_pretrained_class, base_class, value_head_prefix, packing_samples)
